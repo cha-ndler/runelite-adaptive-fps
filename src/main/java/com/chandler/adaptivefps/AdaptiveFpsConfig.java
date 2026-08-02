@@ -43,7 +43,7 @@ public interface AdaptiveFpsConfig extends Config
 		name = "Minimum target",
 		description = "Never set the FPS target below this, as a guard against a display reporting a nonsense"
 			+ " refresh rate.",
-		position = 2
+		position = 3
 	)
 	@Range(min = 1, max = 999)
 	default int minTarget()
@@ -69,7 +69,7 @@ public interface AdaptiveFpsConfig extends Config
 		name = "Restore target on stop",
 		description = "Put the GPU plugin's FPS target back to whatever it was before this plugin first changed"
 			+ " it, when this plugin is disabled.",
-		position = 3
+		position = 5
 	)
 	default boolean restoreOnStop()
 	{
@@ -81,7 +81,7 @@ public interface AdaptiveFpsConfig extends Config
 		name = "Announce changes in chat",
 		description = "Print a game chat message whenever the FPS target changes because the client moved to a"
 			+ " different monitor.",
-		position = 4
+		position = 6
 	)
 	default boolean chatFeedback()
 	{
