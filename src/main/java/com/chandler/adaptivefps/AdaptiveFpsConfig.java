@@ -52,6 +52,19 @@ public interface AdaptiveFpsConfig extends Config
 	}
 
 	@ConfigItem(
+		keyName = "applyGpuSettings",
+		name = "Fix GPU plugin settings",
+		description = "Turn the GPU plugin's Vsync mode off and Unlock FPS on, which it needs before it will"
+			+ " honour an FPS target at all. Applied once when this plugin starts -- if you change them back"
+			+ " later it will leave them alone rather than fight you -- and not undone when this plugin stops.",
+		position = 4
+	)
+	default boolean applyGpuSettings()
+	{
+		return false;
+	}
+
+	@ConfigItem(
 		keyName = "restoreOnStop",
 		name = "Restore target on stop",
 		description = "Put the GPU plugin's FPS target back to whatever it was before this plugin first changed"

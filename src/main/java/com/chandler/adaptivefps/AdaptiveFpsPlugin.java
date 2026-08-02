@@ -61,8 +61,8 @@ public class AdaptiveFpsPlugin extends Plugin
 
 	private String lastDeviceId;
 	private int lastAppliedTarget = -1;
-	private boolean warnedAboutVsync;
-	private boolean warnedAboutUnlockFps;
+	private boolean handledVsync;
+	private boolean handledUnlockFps;
 	private boolean warnedAboutGpuPlugin;
 
 	@Provides
@@ -77,8 +77,8 @@ public class AdaptiveFpsPlugin extends Plugin
 		originalTarget = null;
 		lastDeviceId = null;
 		lastAppliedTarget = -1;
-		warnedAboutVsync = false;
-		warnedAboutUnlockFps = false;
+		handledVsync = false;
+		handledUnlockFps = false;
 		log.info("Adaptive FPS started");
 		// Deliberately no immediate evaluate() here. The GPU plugin creates its GL context lazily
 		// and bails out of startUp while the canvas is still invalid, so writing gpu.fpsTarget this
@@ -240,24 +240,51 @@ public class AdaptiveFpsPlugin extends Plugin
 	/**
 	 * The GPU plugin only honours fpsTarget when it is not syncing to the display -- see
 	 * GpuPlugin, which passes 0 to setUnlockedFpsTarget whenever the swap interval is non-zero.
-	 * If the user has vsync on, or has locked FPS, our writes are inert and they should know.
+	 * If the user has vsync on, or has locked FPS, our writes are inert.
+	 * <p>
+	 * Each condition is handled at most once per start. Repeatedly forcing a setting the user has
+	 * deliberately changed back would be worse than leaving it alone and saying so.
 	 */
 	private void checkGpuPluginState()
 	{
 		String vsyncMode = configManager.getConfiguration(GPU_GROUP, KEY_VSYNC_MODE);
-		if (vsyncMode != null && !"OFF".equalsIgnoreCase(vsyncMode) && !warnedAboutVsync)
+		if (vsyncMode != null && !"OFF".equalsIgnoreCase(vsyncMode) && !handledVsync)
 		{
-			warnedAboutVsync = true;
-			warn("GPU plugin vsync mode is " + vsyncMode
-				+ ", so the FPS target is ignored. Set it to Off for this plugin to take effect.");
+			handledVsync = true;
+			if (config.applyGpuSettings())
+			{
+				configManager.setConfiguration(GPU_GROUP, KEY_VSYNC_MODE, "OFF");
+				announce("GPU plugin vsync mode was " + vsyncMode + "; set it to Off so the FPS target applies.");
+			}
+			else
+			{
+				warn("GPU plugin vsync mode is " + vsyncMode + ", so the FPS target is ignored."
+					+ " Set it to Off, or enable \"Fix GPU plugin settings\".");
+			}
 		}
 
 		Boolean unlockFps = configManager.getConfiguration(GPU_GROUP, KEY_UNLOCK_FPS, boolean.class);
-		if (unlockFps != null && !unlockFps && !warnedAboutUnlockFps)
+		if (unlockFps != null && !unlockFps && !handledUnlockFps)
 		{
-			warnedAboutUnlockFps = true;
-			warn("GPU plugin 'Unlock FPS' is off, so the client is capped at 50 FPS.");
+			handledUnlockFps = true;
+			if (config.applyGpuSettings())
+			{
+				configManager.setConfiguration(GPU_GROUP, KEY_UNLOCK_FPS, true);
+				announce("GPU plugin 'Unlock FPS' was off, capping the client at 50 FPS; turned it on.");
+			}
+			else
+			{
+				warn("GPU plugin 'Unlock FPS' is off, so the client is capped at 50 FPS."
+					+ " Turn it on, or enable \"Fix GPU plugin settings\".");
+			}
 		}
+	}
+
+	/** Something was changed on the user's behalf, so it needs to be discoverable afterwards. */
+	private void announce(String message)
+	{
+		log.info(message);
+		sendChat("Adaptive FPS: " + message);
 	}
 
 	/**
