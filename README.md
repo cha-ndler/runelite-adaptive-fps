@@ -66,8 +66,28 @@ left alone rather than guessed at.
 
 ## Status
 
-Proof of concept. It compiles and the mechanisms above are verified, but it has not yet been run
-through a full in-game session.
+Proof of concept, exercised against a real client on a 500Hz + 175Hz pair:
+
+```
+Adaptive FPS started
+Display \Display1 at 500Hz -> gpu.fpsTarget 495
+Display \Display0 at 175Hz -> gpu.fpsTarget 172     (client dragged to the 175Hz panel)
+Display \Display1 at 500Hz -> gpu.fpsTarget 495     (dragged back)
+```
+
+Retargeting works in both directions within one poll interval, with no exceptions raised.
+
+Known limitations:
+
+- **Restore on stop does not survive client exit.** Disabling the plugin during a session restores
+  `gpu.fpsTarget`, but on a full client shutdown the restore write loses a race with RuneLite's
+  final config flush, so the last applied target persists instead. Harmless in practice, since the
+  persisted value is the right one for whichever monitor you were last on, but it does not do what
+  the setting name implies in that case.
+- Inert while the GPU plugin's vsync mode is anything but Off, because `GpuPlugin` ignores
+  `fpsTarget` entirely when syncing to the display. The plugin reports this in chat rather than
+  failing silently, but it cannot fix it for you.
+- Only drives the core GPU plugin. 117HD has its own `hd.fpsTarget` and is not handled.
 
 Nothing in the RuneLite Plugin Hub does this today — all 2209 plugin manifests were checked. The
 natural long-term home for this is the core GPU plugin itself, which already owns both `fpsTarget`
@@ -82,7 +102,7 @@ upstream.
 | Headroom below refresh | 3 | Minimum frames to stay under the refresh rate |
 | Scale headroom with refresh | on | Widen the gap on faster panels, one frame per 100Hz |
 | Minimum target | 60 | Floor, guarding against a nonsense reported refresh rate |
-| Restore target on stop | on | Hands `gpu.fpsTarget` back to its previous value when disabled |
+| Restore target on stop | on | Hands `gpu.fpsTarget` back to its previous value when the plugin is disabled. Does **not** reliably apply when the whole client exits — see Status |
 | Announce changes in chat | on | Prints a message when the target changes |
 
 ## Building

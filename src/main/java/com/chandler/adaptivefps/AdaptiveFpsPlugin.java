@@ -11,6 +11,7 @@ import javax.swing.SwingUtilities;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
+import net.runelite.api.GameState;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.plugins.Plugin;
@@ -62,6 +63,7 @@ public class AdaptiveFpsPlugin extends Plugin
 	private int lastAppliedTarget = -1;
 	private boolean warnedAboutVsync;
 	private boolean warnedAboutUnlockFps;
+	private boolean warnedAboutGpuPlugin;
 
 	@Provides
 	AdaptiveFpsConfig provideConfig(ConfigManager configManager)
@@ -77,7 +79,11 @@ public class AdaptiveFpsPlugin extends Plugin
 		lastAppliedTarget = -1;
 		warnedAboutVsync = false;
 		warnedAboutUnlockFps = false;
-		SwingUtilities.invokeLater(this::evaluate);
+		log.info("Adaptive FPS started");
+		// Deliberately no immediate evaluate() here. The GPU plugin creates its GL context lazily
+		// and bails out of startUp while the canvas is still invalid, so writing gpu.fpsTarget this
+		// early can land in a window where GpuPlugin.setupSyncMode dereferences a null awtContext.
+		// The scheduled poll picks it up once the client is actually rendering.
 	}
 
 	@Override
@@ -100,6 +106,11 @@ public class AdaptiveFpsPlugin extends Plugin
 
 	private void evaluate()
 	{
+		if (!gpuRendererReady())
+		{
+			return;
+		}
+
 		Integer refresh = currentRefreshRate();
 		if (refresh == null)
 		{
@@ -126,7 +137,7 @@ public class AdaptiveFpsPlugin extends Plugin
 		lastDeviceId = deviceId;
 		lastAppliedTarget = target;
 
-		log.debug("Display {} at {}Hz -> fpsTarget {}", deviceId, refresh, target);
+		log.info("Display {} at {}Hz -> gpu.fpsTarget {}", deviceId, refresh, target);
 
 		if (config.chatFeedback() && !firstApply)
 		{
@@ -134,6 +145,33 @@ public class AdaptiveFpsPlugin extends Plugin
 		}
 
 		checkGpuPluginState();
+	}
+
+	/**
+	 * True once the GPU plugin is enabled and the client is actually rendering through it.
+	 * <p>
+	 * {@code GpuPlugin.startUp} bails out with a null {@code awtContext} while the canvas is still
+	 * invalid and retries on a later tick. Writing {@code gpu.fpsTarget} inside that window makes
+	 * its {@code onConfigChanged} handler run {@code setupSyncMode}, which dereferences that null
+	 * and throws on the client thread. Waiting for the login screen is a reliable proxy for the GL
+	 * context existing, because the GPU plugin is what draws it.
+	 */
+	private boolean gpuRendererReady()
+	{
+		Boolean enabled = configManager.getConfiguration("runelite", "gpuplugin", boolean.class);
+		if (enabled == null || !enabled)
+		{
+			if (!warnedAboutGpuPlugin)
+			{
+				warnedAboutGpuPlugin = true;
+				log.info("GPU plugin is not enabled, so there is no FPS target to drive");
+				sendChat("Adaptive FPS: the GPU plugin is not enabled, so there is no FPS target to set.");
+			}
+			return false;
+		}
+
+		GameState state = client.getGameState();
+		return state != null && state.getState() >= GameState.LOGIN_SCREEN.getState();
 	}
 
 	/**
