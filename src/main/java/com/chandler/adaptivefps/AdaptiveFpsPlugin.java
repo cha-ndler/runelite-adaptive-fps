@@ -164,8 +164,7 @@ public class AdaptiveFpsPlugin extends Plugin
 			if (!warnedAboutGpuPlugin)
 			{
 				warnedAboutGpuPlugin = true;
-				log.info("GPU plugin is not enabled, so there is no FPS target to drive");
-				sendChat("Adaptive FPS: the GPU plugin is not enabled, so there is no FPS target to set.");
+				warn("the GPU plugin is not enabled, so there is no FPS target to set.");
 			}
 			return false;
 		}
@@ -249,7 +248,7 @@ public class AdaptiveFpsPlugin extends Plugin
 		if (vsyncMode != null && !"OFF".equalsIgnoreCase(vsyncMode) && !warnedAboutVsync)
 		{
 			warnedAboutVsync = true;
-			sendChat("Adaptive FPS: GPU plugin vsync mode is " + vsyncMode
+			warn("GPU plugin vsync mode is " + vsyncMode
 				+ ", so the FPS target is ignored. Set it to Off for this plugin to take effect.");
 		}
 
@@ -257,8 +256,19 @@ public class AdaptiveFpsPlugin extends Plugin
 		if (unlockFps != null && !unlockFps && !warnedAboutUnlockFps)
 		{
 			warnedAboutUnlockFps = true;
-			sendChat("Adaptive FPS: GPU plugin 'Unlock FPS' is off, so the client is capped at 50 FPS.");
+			warn("GPU plugin 'Unlock FPS' is off, so the client is capped at 50 FPS.");
 		}
+	}
+
+	/**
+	 * Warnings have to reach the log as well as chat. Chat is not rendered at the login screen, and
+	 * these fire precisely when the plugin is inert, so a user in that state would otherwise get no
+	 * signal in either place and simply see nothing happen.
+	 */
+	private void warn(String message)
+	{
+		log.warn(message);
+		sendChat("Adaptive FPS: " + message);
 	}
 
 	private void sendChat(String message)
