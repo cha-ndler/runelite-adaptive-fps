@@ -106,7 +106,7 @@ public class AdaptiveFpsPlugin extends Plugin
 			return;
 		}
 
-		int target = Math.max(config.minTarget(), refresh - config.headroom());
+		int target = Math.max(config.minTarget(), refresh - headroomFor(refresh));
 		String deviceId = currentDeviceId();
 
 		boolean movedMonitor = deviceId != null && !deviceId.equals(lastDeviceId);
@@ -134,6 +134,22 @@ public class AdaptiveFpsPlugin extends Plugin
 		}
 
 		checkGpuPluginState();
+	}
+
+	/**
+	 * How far below the refresh rate to sit. A fixed gap does not travel well across a wide range
+	 * of refresh rates: 3 FPS is a comfortable margin at 175Hz but only 0.6% at 500Hz, which frame
+	 * pacing jitter can eat. Scaling by one frame per 100Hz gives 172 on a 175Hz panel and 495 on
+	 * a 500Hz one, matching the usual per-panel recommendations.
+	 */
+	private int headroomFor(int refresh)
+	{
+		int headroom = config.headroom();
+		if (config.scaleHeadroom())
+		{
+			headroom = Math.max(headroom, (int) Math.ceil(refresh / 100.0));
+		}
+		return headroom;
 	}
 
 	/**

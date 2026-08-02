@@ -22,8 +22,12 @@ within a couple of seconds, with no restart.
 
 | Monitor | Reported refresh | Resulting target |
 | --- | --- | --- |
+| 500Hz | 500Hz | 495 |
 | 240Hz | 240Hz | 237 |
 | 175Hz (174.963 actual) | 175Hz | 172 |
+
+The gap widens on faster panels. A fixed 3 FPS margin is comfortable at 175Hz but is only 0.6% at
+500Hz, which frame pacing jitter can eat, so by default the gap scales at one frame per 100Hz.
 
 ## Why it writes to the GPU plugin instead of limiting frames itself
 
@@ -75,7 +79,8 @@ upstream.
 
 | Setting | Default | Purpose |
 | --- | --- | --- |
-| Headroom below refresh | 3 | Frames to stay under the refresh rate |
+| Headroom below refresh | 3 | Minimum frames to stay under the refresh rate |
+| Scale headroom with refresh | on | Widen the gap on faster panels, one frame per 100Hz |
 | Minimum target | 60 | Floor, guarding against a nonsense reported refresh rate |
 | Restore target on stop | on | Hands `gpu.fpsTarget` back to its previous value when disabled |
 | Announce changes in chat | on | Prints a message when the target changes |

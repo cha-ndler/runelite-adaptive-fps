@@ -25,6 +25,20 @@ public interface AdaptiveFpsConfig extends Config
 	}
 
 	@ConfigItem(
+		keyName = "scaleHeadroom",
+		name = "Scale headroom with refresh",
+		description = "Widen the gap on faster panels. Frame pacing jitter grows with refresh rate, so a gap"
+			+ " that is comfortable at 175Hz is too tight at 500Hz. When on, the gap used is the larger of the"
+			+ " headroom above and one frame per 100Hz -- which gives 172 on a 175Hz panel and 495 on a 500Hz"
+			+ " one.",
+		position = 2
+	)
+	default boolean scaleHeadroom()
+	{
+		return true;
+	}
+
+	@ConfigItem(
 		keyName = "minTarget",
 		name = "Minimum target",
 		description = "Never set the FPS target below this, as a guard against a display reporting a nonsense"
