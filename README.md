@@ -1,0 +1,87 @@
+# Adaptive FPS
+
+Keeps the RuneLite GPU plugin's FPS target just below the refresh rate of whichever monitor the
+client window is currently on.
+
+## The problem
+
+On a variable refresh rate display (G-Sync / FreeSync) used with V-Sync, the frame rate has to stay a
+few frames *under* the panel's refresh rate. Cross it and the display leaves its VRR window and falls
+back to V-Sync, which queues a frame and adds latency — up to a full frame period.
+
+A single fixed FPS target cannot satisfy two monitors with different refresh rates. On a 240Hz + 175Hz
+pair, a target tuned for the 240Hz panel (237) is 62 frames *over* the 175Hz panel's ceiling. Drag the
+client from one to the other and you silently land on the wrong side of that boundary, with no
+indication anything changed.
+
+## What it does
+
+Every two seconds it reads the refresh rate of the monitor the client canvas sits on and writes
+`gpu.fpsTarget` to `refresh - headroom` (default 3). Moving the client between monitors re-targets it
+within a couple of seconds, with no restart.
+
+| Monitor | Reported refresh | Resulting target |
+| --- | --- | --- |
+| 240Hz | 240Hz | 237 |
+| 175Hz (174.963 actual) | 175Hz | 172 |
+
+## Why it writes to the GPU plugin instead of limiting frames itself
+
+`GpuPlugin.onConfigChanged` already watches `unlockFps`, `vsyncMode` and `fpsTarget` and re-applies
+the target live. Rather than adding a second, competing frame limiter, this plugin just keeps the
+existing one pointed at the right number. That keeps the behaviour identical to setting the value by
+hand in the GPU plugin's settings.
+
+## Requirements
+
+The GPU plugin must have:
+
+- **Unlock FPS** on — otherwise the client is capped at 50 FPS and the target is irrelevant.
+- **Vsync mode: Off** — `GpuPlugin` passes `0` to `setUnlockedFpsTarget` whenever the swap interval is
+  non-zero, so `fpsTarget` is ignored entirely when vsync is on or adaptive.
+
+The plugin detects both of these and says so in chat rather than failing silently.
+
+Note that `Vsync mode: On` is itself partly monitor-adaptive — it locks presentation to the current
+display's refresh. It is not a substitute here, because it locks *at* the refresh rate rather than
+below it, which is the wrong side of the VRR boundary.
+
+## Verified behaviour
+
+Three assumptions were checked empirically on a 240Hz + 175Hz setup rather than assumed:
+
+1. **Java reports both refresh rates correctly.** `GraphicsDevice.getDisplayMode().getRefreshRate()`
+   returns 240 and 175. The 175Hz panel is actually 174.963Hz; Java rounds it to 175, which is the
+   number we want.
+2. **AWT updates the canvas `GraphicsConfiguration` when the window moves.** A canvas in a frame moved
+   between monitors reports the new device and its refresh rate — it does not cache the original.
+3. **`gpu.fpsTarget` applies live.** Confirmed by reading `GpuPlugin.onConfigChanged` upstream.
+
+Displays that report `REFRESH_RATE_UNKNOWN` (some drivers, virtual displays, remote sessions) are
+left alone rather than guessed at.
+
+## Status
+
+Proof of concept. It compiles and the mechanisms above are verified, but it has not yet been run
+through a full in-game session.
+
+Nothing in the RuneLite Plugin Hub does this today — all 2209 plugin manifests were checked. The
+natural long-term home for this is the core GPU plugin itself, which already owns both `fpsTarget`
+and `vsyncMode`; a config option there ("target current display refresh minus N") would cover every
+user without a second plugin. This repository exists to prove the approach before proposing that
+upstream.
+
+## Configuration
+
+| Setting | Default | Purpose |
+| --- | --- | --- |
+| Headroom below refresh | 3 | Frames to stay under the refresh rate |
+| Minimum target | 60 | Floor, guarding against a nonsense reported refresh rate |
+| Restore target on stop | on | Hands `gpu.fpsTarget` back to its previous value when disabled |
+| Announce changes in chat | on | Prints a message when the target changes |
+
+## Building
+
+```
+./gradlew build
+```
