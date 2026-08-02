@@ -9,10 +9,10 @@ On a variable refresh rate display (G-Sync / FreeSync) used with V-Sync, the fra
 few frames *under* the panel's refresh rate. Cross it and the display leaves its VRR window and falls
 back to V-Sync, which queues a frame and adds latency — up to a full frame period.
 
-A single fixed FPS target cannot satisfy two monitors with different refresh rates. On a 240Hz + 175Hz
-pair, a target tuned for the 240Hz panel (237) is 62 frames *over* the 175Hz panel's ceiling. Drag the
-client from one to the other and you silently land on the wrong side of that boundary, with no
-indication anything changed.
+A single fixed FPS target cannot satisfy two monitors with different refresh rates, and the wider
+the gap between them the worse it gets. On a 500Hz + 175Hz pair, a target tuned for the fast panel
+(495) sits 320 frames *over* the 175Hz panel's ceiling. Drag the client from one to the other and
+you silently land on the wrong side of that boundary, with no indication anything changed.
 
 ## What it does
 
