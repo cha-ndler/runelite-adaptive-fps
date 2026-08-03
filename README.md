@@ -3,6 +3,11 @@
 Keeps the RuneLite GPU plugin's FPS target just below the refresh rate of whichever monitor the
 client window is currently on.
 
+![The client moved from a 500Hz monitor to a 175Hz one, with the plugin announcing the new FPS target in chat](docs/demo.gif)
+
+*Dragging the client between a 500Hz and a 175Hz display. The target follows the window, and the
+change is announced in game chat.*
+
 ## The problem
 
 On a variable refresh rate display (G-Sync / FreeSync) used with V-Sync, the frame rate has to stay a
@@ -43,6 +48,32 @@ quantity that actually matters.
 | 500Hz | 69 | 431 | 0.32 ms |
 
 Set **Headroom** to `Fixed` if you would rather pick the number yourself.
+
+### Where those numbers come from
+
+Blur Busters' [G-SYNC 101](https://blurbusters.com/gsync/gsync101-input-lag-tests-and-settings/) is
+the standard reference for why the cap has to sit below the maximum refresh rate at all: once the
+frame rate reaches it, there is nothing left for the variable refresh rate to track, and the display
+reverts to V-Sync behaviour or tearing. It recommends a minimum of 3 FPS below refresh, and notes
+that a larger margin is wanted as refresh rates climb.
+
+The scaling itself comes from what NVIDIA's own limiter does. In the
+[G-SYNC 101 discussion thread](https://forums.blurbusters.com/viewtopic.php?t=3441), jorimt — the
+article's author — describes the automatic limit applied by Low Latency Mode Ultra / Reflex as
+using **-1 FPS at 60Hz** and **-16 FPS at 240Hz**, scaling with refresh rate to absorb frametime
+variance.
+
+Both of those points are reproduced exactly by `refresh² / 3600`:
+
+- 60² / 3600 = **1**
+- 240² / 3600 = **16**
+
+which is why this plugin uses that expression rather than a hand-picked curve.
+
+One caveat worth stating plainly: the two published data points are 60Hz and 240Hz, so anything
+faster is an **extrapolation**. It is a well-behaved one — the constant ~0.3ms frametime margin
+holds across the whole range rather than diverging — but a 500Hz target of 431 is inferred, not
+measured. `Fixed` is there for anyone who would rather not rely on that.
 
 ## Why it writes to the GPU plugin instead of limiting frames itself
 

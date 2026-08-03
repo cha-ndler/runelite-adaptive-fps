@@ -2,15 +2,24 @@ plugins {
 	id 'java'
 }
 
+ext {
+	pluginName = 'Adaptive FPS'
+	pluginDescription = 'Keeps the FPS target just below the refresh rate of the monitor the client is on'
+	pluginProvider = 'cha-ndler'
+}
+
 repositories {
 	mavenLocal()
 	maven {
 		url = 'https://repo.runelite.net'
+		content {
+			includeGroupByRegex("net\\.runelite.*")
+		}
 	}
 	mavenCentral()
 }
 
-def runeLiteVersion = 'latest.release'
+def runeLiteVersion = '1.12.33'
 
 dependencies {
 	compileOnly group: 'net.runelite', name: 'client', version: runeLiteVersion
