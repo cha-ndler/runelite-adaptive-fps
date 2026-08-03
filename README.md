@@ -5,8 +5,8 @@ client window is currently on.
 
 ![The client moved from a 500Hz monitor to a 175Hz one, with the plugin announcing the new FPS target in chat](docs/demo.gif)
 
-*Dragging the client between a 500Hz and a 175Hz display. The target follows the window, and the
-change is announced in game chat.*
+*Dragging the client between a 500Hz and a 175Hz display. The target follows the window, the change
+is announced in game chat, and the plugin panel on the right shows the settings driving it.*
 
 ## The problem
 
