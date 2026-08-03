@@ -1,0 +1,31 @@
+name: build
+
+on:
+  push:
+  pull_request:
+  # The client is depended on as latest.release, and the plugin deliberately compiles against a
+  # couple of its internal GPU classes so a rename upstream breaks the build rather than silently
+  # doing nothing. That tripwire only works if something builds when RuneLite changes and we have
+  # not, so build weekly as well.
+  schedule:
+    - cron: "0 6 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Java 11 to match what the Plugin Hub builds submissions with, so a failure here is a
+      # failure there.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 11
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - run: ./gradlew build --no-daemon
