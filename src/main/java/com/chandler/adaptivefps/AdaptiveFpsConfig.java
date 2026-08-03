@@ -13,8 +13,8 @@ public interface AdaptiveFpsConfig extends Config
 	@ConfigItem(
 		keyName = "headroomMode",
 		name = "Headroom",
-		description = "How far below the refresh rate to cap. Automatic scales with the panel and suits any"
-			+ " refresh rate; Fixed uses the number below.",
+		description = "How far below the refresh rate to cap. Automatic scales with the panel; Fixed uses"
+			+ " the number below.",
 		position = 1
 	)
 	default HeadroomMode headroomMode()
@@ -50,15 +50,18 @@ public interface AdaptiveFpsConfig extends Config
 	 * The only setting here that changes anything outside this plugin, so it is the only one that
 	 * asks first. RuneLite renders {@code warning} as a Yes/No dialog that defaults to No and drops
 	 * the change if declined.
+	 * <p>
+	 * The key still reads {@code applyGpuSettings} now that it covers 117 HD as well. Renaming it
+	 * would quietly switch every user who had opted in back off and leave the old key behind on disk,
+	 * which is a poor trade for a tidier name nobody sees.
 	 */
 	@ConfigItem(
 		keyName = "applyGpuSettings",
-		name = "Fix GPU plugin settings",
-		description = "Turn the GPU plugin's vsync off and Unlock FPS on, which the FPS target needs to work"
-			+ " at all. Switching this back off restores them.",
-		warning = "This changes two settings that belong to the GPU plugin: Vsync mode is set to Off and"
-			+ " Unlock FPS is turned on. Both are put back if you switch this off again or disable"
-			+ " Adaptive FPS.",
+		name = "Fix vsync and Unlock FPS",
+		description = "Turns your renderer's vsync off and Unlock FPS on, which the FPS target needs to"
+			+ " work. Untick to put them back.",
+		warning = "Changes two of your renderer's settings: vsync to Off, Unlock FPS on. On 117 HD both"
+			+ " differ from its defaults, so expect a visible change. Unticking restores them.",
 		position = 4
 	)
 	default boolean applyGpuSettings()

@@ -1,5 +1,52 @@
 # Changelog
 
+## 1.1.0
+
+Adds 117 HD support. Whichever renderer is enabled is now detected automatically,
+and both are driven the same way.
+
+### Added
+
+- **117 HD is supported.** It uses the same three config keys as the core GPU
+  plugin (`fpsTarget`, `unlockFps`, `vsyncMode`) and the same rule for when a
+  target is honoured, so it needs no separate handling and no new setting — the
+  renderer is detected, not selected. RuneLite treats the two as mutually
+  exclusive, so exactly one is ever active.
+- The vsync and Unlock FPS warnings, and the opt-in fix, now name whichever
+  renderer you are running. Worth knowing: 117 HD defaults to `Unlock FPS` off
+  and `Vsync Mode: Adaptive`, so a stock install fails both conditions where a
+  stock GPU plugin install passes them.
+
+### Fixed
+
+- **Disabling the plugin while 117 HD was active overwrote your frame cap.**
+  Shutdown restored the *core GPU plugin's* stored FPS target without checking
+  which renderer was running, so simply enabling and then disabling Adaptive FPS
+  left a 117 HD user capped at a number belonging to a plugin that was not even
+  enabled, until 117 HD next recomputed its own.
+- **Disabling the plugin while vsync was on capped the client at the stored FPS
+  target.** Shutdown handed back that target unconditionally, but a renderer
+  syncing to the display sets `0`, not its target. Affected the GPU plugin too.
+- Restoring a borrowed setting the user had never set wrote an explicit value
+  rather than clearing the key. Rare on the GPU plugin; the normal case on
+  117 HD, where both defaults differ from what the fix sets.
+- Settings borrowed from one renderer are no longer lost when switching to the
+  other with the fix enabled. Both are given back.
+
+### Changed
+
+- The target is re-applied on every poll rather than only when it changes, so it
+  recovers from anything that overwrites it. Both renderers push their own value
+  back from an event handler whose ordering against this plugin's is undefined,
+  and the client offers no way to read the current target back, so this is the
+  only way to be certain. Chat and log messages still appear only on a change.
+
+### Notes
+
+- Quitting the client does not restore borrowed settings, because RuneLite does
+  not stop plugins on exit. Unticking the box or disabling the plugin are the
+  only triggers. Longstanding behaviour, now documented rather than implied.
+
 ## 1.0.0
 
 Keeps RuneLite's FPS target just below the refresh rate of whichever monitor the
@@ -30,6 +77,7 @@ otherwise puts you on the wrong side of that boundary with no indication.
 ### Notes
 
 - Drives the core GPU plugin. 117HD has its own FPS target and is not handled.
+  *(Resolved in 1.1.0.)*
 - Displays that do not report a refresh rate are left alone rather than guessed at.
 - The GPU plugin's "FPS target" setting keeps showing your configured value
   rather than the one in effect. That is the trade for never writing to it.
