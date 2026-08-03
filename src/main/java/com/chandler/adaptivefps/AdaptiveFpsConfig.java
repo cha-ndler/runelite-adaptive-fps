@@ -13,8 +13,8 @@ public interface AdaptiveFpsConfig extends Config
 	@ConfigItem(
 		keyName = "headroomMode",
 		name = "Headroom",
-		description = "How far below the refresh rate to cap. Automatic scales with the panel and suits any"
-			+ " refresh rate; Fixed uses the number below.",
+		description = "How far below the refresh rate to cap. Automatic scales with the panel; Fixed uses"
+			+ " the number below.",
 		position = 1
 	)
 	default HeadroomMode headroomMode()
@@ -58,12 +58,10 @@ public interface AdaptiveFpsConfig extends Config
 	@ConfigItem(
 		keyName = "applyGpuSettings",
 		name = "Fix vsync and Unlock FPS",
-		description = "Turn the active renderer's vsync off and Unlock FPS on, which the FPS target needs"
-			+ " to work at all. Applies to whichever of the GPU plugin or 117 HD is enabled. Switching"
-			+ " this back off restores them.",
-		warning = "This changes two settings that belong to your renderer: Vsync mode is set to Off and"
-			+ " Unlock FPS is turned on. On 117 HD both of these differ from its defaults, so expect a"
-			+ " visible change. Both are put back if you switch this off again or disable Adaptive FPS.",
+		description = "Turns your renderer's vsync off and Unlock FPS on, which the FPS target needs to"
+			+ " work. Untick to put them back.",
+		warning = "Changes two of your renderer's settings: vsync to Off, Unlock FPS on. On 117 HD both"
+			+ " differ from its defaults, so expect a visible change. Unticking restores them.",
 		position = 4
 	)
 	default boolean applyGpuSettings()

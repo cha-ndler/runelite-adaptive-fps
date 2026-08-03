@@ -84,8 +84,8 @@ setting, so:
 
 - **Your renderer's own "FPS target" setting is never written.** It keeps whatever you set it to,
   and it is what takes effect again the moment this plugin is disabled or the client is restarted.
-- **Nothing needs restoring**, because nothing was persisted. There is no state left behind on disk
-  if you uninstall the plugin.
+- **Nothing needs restoring**, because nothing was persisted — with one exception, the checkbox
+  below, which is off unless you turn it on.
 - Rather than adding a second, competing frame limiter, this drives the one the client already has.
 
 The one exception is the optional **Fix vsync and Unlock FPS** checkbox, which is off by default.
@@ -133,7 +133,7 @@ below it, which is the wrong side of the VRR boundary.
 
 ## Verified behaviour
 
-Three assumptions were checked empirically on a 500Hz + 175Hz pair rather than assumed:
+Four assumptions were checked empirically on a 500Hz + 175Hz pair rather than assumed:
 
 1. **Java reports both refresh rates correctly.** `GraphicsDevice.getDisplayMode().getRefreshRate()`
    returns 500 and 175. The 175Hz panel is actually 174.963Hz; Java rounds it to 175, which is the
@@ -146,13 +146,16 @@ Three assumptions were checked empirically on a 500Hz + 175Hz pair rather than a
    whenever one of their sync settings changes, so the target is re-applied on every poll rather
    than only when it changes. Catching the config event merely makes that happen sooner: which
    plugin's event handler runs first is not defined, so correctness cannot depend on winning it.
+4. **The target produces the frame rate it asks for.** On the 175Hz panel with a target of 166,
+   RuneLite's FPS counter reads 165.
 
 Displays that report `REFRESH_RATE_UNKNOWN` (some drivers, virtual displays, remote sessions) are
 left alone rather than guessed at.
 
 ## Status
 
-Proof of concept, exercised against a real client on a 500Hz + 175Hz pair:
+On the Plugin Hub and in use. Exercised against a real client on a 500Hz + 175Hz pair, under both
+renderers, logged in and at the login screen:
 
 ```
 Adaptive FPS started
@@ -161,7 +164,7 @@ Display \Display0 at 175Hz -> FPS target 166     (client dragged to the 175Hz pa
 Display \Display1 at 500Hz -> FPS target 431     (dragged back)
 ```
 
-Retargeting works in both directions within one poll interval, with no exceptions raised.
+Retargeting works in both directions within one poll interval.
 
 Known limitations:
 
@@ -174,17 +177,13 @@ Known limitations:
 - 117 HD's settings are read by key name and its defaults are transcribed rather than inherited,
   since it is a Hub plugin and cannot be compiled against. If it ever renames one of those keys the
   cost is a spurious warning, not a wrong frame cap.
-- **Quitting the client does not restore borrowed settings.** RuneLite does not stop plugins on
-  exit, so the two triggers listed above — unticking the box, or disabling Adaptive FPS — are the
-  only ones. Close the client with the fix applied and the value it borrowed is gone, because it was
-  only ever held in memory. Nothing breaks: vsync stays off and the target keeps working. But the
-  setting you originally had is not coming back, so untick the box first if you want it returned.
+- **Quitting the client does not restore borrowed settings** — RuneLite does not stop plugins on
+  exit. Nothing breaks, but untick the box first if you want your original values back.
 
-Nothing in the RuneLite Plugin Hub does this today — all 2209 plugin manifests were checked. The
-natural long-term home for this is the core GPU plugin itself, which already owns both `fpsTarget`
-and `vsyncMode`; a config option there ("target current display refresh minus N") would cover every
-user without a second plugin. This repository exists to prove the approach before proposing that
-upstream.
+No other Plugin Hub plugin did this when this one was submitted; the manifests were checked. The
+natural long-term home is the core GPU plugin itself, which already owns both `fpsTarget` and
+`vsyncMode`: a config option there ("target current display refresh minus N") would cover every user
+without a second plugin at all. Until that exists, this fills the gap.
 
 ## Configuration
 
@@ -193,7 +192,7 @@ upstream.
 | Headroom | Automatic | How far below the refresh rate to cap. Automatic suits any panel; Fixed uses the number below |
 | Fixed headroom | 3 | Frames below the refresh rate. Ignored unless Headroom is Fixed |
 | Minimum target | 30 | Never cap below this, whatever the display reports |
-| Fix vsync and Unlock FPS | off | Turns the active renderer's vsync off and Unlock FPS on, which the target needs to work. Asks first, and switching it back off restores them |
+| Fix vsync and Unlock FPS | off | Turns your renderer's vsync off and Unlock FPS on, which the target needs. Asks first; unticking restores them |
 | Announce in chat | on | Chat message when the target changes |
 
 ## Building
