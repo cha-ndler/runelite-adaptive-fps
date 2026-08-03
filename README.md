@@ -15,9 +15,10 @@ few frames *under* the panel's refresh rate. Cross it and the display leaves its
 back to V-Sync, which queues a frame and adds latency — up to a full frame period.
 
 A single fixed FPS target cannot satisfy two monitors with different refresh rates, and the wider
-the gap between them the worse it gets. On a 500Hz + 175Hz pair, a target tuned for the fast panel
-(495) sits 320 frames *over* the 175Hz panel's ceiling. Drag the client from one to the other and
-you silently land on the wrong side of that boundary, with no indication anything changed.
+the gap between them the worse it gets. On a 500Hz + 175Hz pair the correct target for the fast
+panel is 431, which is 256 frames *over* what the 175Hz panel can display. Drag the client from one
+to the other and you silently land on the wrong side of that boundary, with no indication anything
+changed.
 
 ## What it does
 
@@ -98,10 +99,10 @@ below it, which is the wrong side of the VRR boundary.
 
 ## Verified behaviour
 
-Three assumptions were checked empirically on a 240Hz + 175Hz setup rather than assumed:
+Three assumptions were checked empirically on a 500Hz + 175Hz pair rather than assumed:
 
 1. **Java reports both refresh rates correctly.** `GraphicsDevice.getDisplayMode().getRefreshRate()`
-   returns 240 and 175. The 175Hz panel is actually 174.963Hz; Java rounds it to 175, which is the
+   returns 500 and 175. The 175Hz panel is actually 174.963Hz; Java rounds it to 175, which is the
    number we want.
 2. **AWT updates the canvas `GraphicsConfiguration` when the window moves.** A canvas in a frame moved
    between monitors reports the new device and its refresh rate — it does not cache the original.
@@ -116,9 +117,9 @@ Proof of concept, exercised against a real client on a 500Hz + 175Hz pair:
 
 ```
 Adaptive FPS started
-Display \Display1 at 500Hz -> gpu.fpsTarget 495
-Display \Display0 at 175Hz -> gpu.fpsTarget 172     (client dragged to the 175Hz panel)
-Display \Display1 at 500Hz -> gpu.fpsTarget 495     (dragged back)
+Display \Display1 at 500Hz -> gpu.fpsTarget 431
+Display \Display0 at 175Hz -> gpu.fpsTarget 166     (client dragged to the 175Hz panel)
+Display \Display1 at 500Hz -> gpu.fpsTarget 431     (dragged back)
 ```
 
 Retargeting works in both directions within one poll interval, with no exceptions raised.
