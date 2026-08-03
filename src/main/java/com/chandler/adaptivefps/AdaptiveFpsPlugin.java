@@ -135,6 +135,7 @@ public class AdaptiveFpsPlugin extends Plugin
 			final int configured = configuredTarget(unlockFps(renderer), vsyncMode(renderer),
 				fpsTarget(renderer));
 			clientThread.invokeLater(() -> client.setUnlockedFpsTarget(configured));
+			log.debug("Handed the FPS target back to {} for {}", configured, renderer.label());
 		}
 
 		activeRenderer = null;

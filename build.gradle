@@ -38,6 +38,22 @@ tasks.withType(JavaCompile).configureEach {
 	options.encoding = 'UTF-8'
 }
 
+// Developer client. The launcher lives in the test source set so it stays out of the published jar.
+// -PrlHome=<dir> runs against a scratch RuneLite directory instead of your real one.
+tasks.register('run', JavaExec) {
+	group = 'application'
+	description = 'Runs a developer client with this plugin loaded'
+	classpath = sourceSets.test.runtimeClasspath
+	mainClass = 'com.chandler.adaptivefps.AdaptiveFpsPluginLauncher'
+	// -PrlDebug turns on debug logging, which is where the quieter lifecycle details go.
+	args = ['--developer-mode'] + (project.hasProperty('rlDebug') ? ['--debug'] : [])
+	// ExternalPluginManager.loadBuiltin refuses to run without them.
+	jvmArgs = ['-ea']
+	if (project.hasProperty('rlHome')) {
+		systemProperty 'user.home', project.property('rlHome')
+	}
+}
+
 java {
 	sourceCompatibility = JavaVersion.VERSION_11
 	targetCompatibility = JavaVersion.VERSION_11
