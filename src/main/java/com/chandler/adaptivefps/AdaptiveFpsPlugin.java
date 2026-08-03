@@ -87,7 +87,9 @@ public class AdaptiveFpsPlugin extends Plugin
 	 * <p>
 	 * This has to hold more than one renderer at a time. Fixing the GPU plugin and then switching to
 	 * 117 HD leaves settings borrowed from both, and a single slot would silently drop the first.
-	 * Concurrent because the config panel, the poll and shutdown all reach it from different threads.
+	 * <p>
+	 * Everything that touches this runs on the EDT. Concurrent anyway, because the cost is nothing and
+	 * the alternative is trusting that assumption to hold for every caller forever.
 	 */
 	private final Map<String, String> borrowedSettings = new ConcurrentHashMap<>();
 
@@ -234,20 +236,26 @@ public class AdaptiveFpsPlugin extends Plugin
 			return;
 		}
 
-		// Turning on "Fix vsync and Unlock FPS" has to be able to act on a condition already warned
-		// about. Without clearing these, the warning that tells the user to enable the setting is the
-		// very thing that stops it from ever taking effect that session.
-		handledVsync = false;
-		handledUnlockFps = false;
+		// Config events arrive on the event bus thread, while everything this touches belongs to the
+		// EDT. Hop across before changing any of it rather than reaching in from here.
+		final boolean applying = Boolean.parseBoolean(event.getNewValue());
+		SwingUtilities.invokeLater(() ->
+		{
+			// Turning on "Fix vsync and Unlock FPS" has to be able to act on a condition already warned
+			// about. Without clearing these, the warning that tells the user to enable the setting is
+			// the very thing that stops it from ever taking effect that session.
+			handledVsync = false;
+			handledUnlockFps = false;
 
-		if (Boolean.parseBoolean(event.getNewValue()))
-		{
-			SwingUtilities.invokeLater(this::evaluate);
-		}
-		else
-		{
-			restoreBorrowedSettings();
-		}
+			if (applying)
+			{
+				evaluate();
+			}
+			else
+			{
+				restoreBorrowedSettings();
+			}
+		});
 	}
 
 	/**
