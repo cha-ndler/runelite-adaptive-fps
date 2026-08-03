@@ -17,17 +17,32 @@ you silently land on the wrong side of that boundary, with no indication anythin
 ## What it does
 
 Every two seconds it reads the refresh rate of the monitor the client canvas sits on and writes
-`gpu.fpsTarget` to `refresh - headroom` (default 3). Moving the client between monitors re-targets it
-within a couple of seconds, with no restart.
+`gpu.fpsTarget` a little below it. Moving the client between monitors re-targets it within a couple
+of seconds, with no restart.
 
-| Monitor | Reported refresh | Resulting target |
-| --- | --- | --- |
-| 500Hz | 500Hz | 495 |
-| 240Hz | 240Hz | 237 |
-| 175Hz (174.963 actual) | 175Hz | 172 |
+## How far below the refresh rate
 
-The gap widens on faster panels. A fixed 3 FPS margin is comfortable at 175Hz but is only 0.6% at
-500Hz, which frame pacing jitter can eat, so by default the gap scales at one frame per 100Hz.
+A flat number does not travel across refresh rates. Three frames is 0.85ms of slack at 60Hz but
+0.012ms at 500Hz — and frame pacing jitter is an absolute time, not a share of the refresh interval,
+so the fast panel ends up with no real margin at all.
+
+The default instead uses `refresh - refresh² / 3600`, which is what NVIDIA's own limiter does: it
+reproduces the documented **-1 FPS at 60Hz** and **-16 FPS at 240Hz** exactly. That formula is
+equivalent to holding a constant **~0.3ms frametime margin** at every refresh rate, which is the
+quantity that actually matters.
+
+| Refresh | Headroom | Target | Frametime margin |
+| --- | --- | --- | --- |
+| 60Hz | 1 | 59 | 0.28 ms |
+| 100Hz | 3 | 97 | 0.31 ms |
+| 120Hz | 4 | 116 | 0.29 ms |
+| 144Hz | 6 | 138 | 0.30 ms |
+| 175Hz | 9 | 166 | 0.31 ms |
+| 240Hz | 16 | 224 | 0.30 ms |
+| 360Hz | 36 | 324 | 0.31 ms |
+| 500Hz | 69 | 431 | 0.32 ms |
+
+Set **Headroom** to `Fixed` if you would rather pick the number yourself.
 
 ## Why it writes to the GPU plugin instead of limiting frames itself
 
@@ -99,12 +114,12 @@ upstream.
 
 | Setting | Default | Purpose |
 | --- | --- | --- |
-| Headroom below refresh | 3 | Minimum frames to stay under the refresh rate |
-| Scale headroom with refresh | on | Widen the gap on faster panels, one frame per 100Hz |
-| Minimum target | 60 | Floor, guarding against a nonsense reported refresh rate |
-| Fix GPU plugin settings | off | Set the GPU plugin's Vsync mode to Off and Unlock FPS on, instead of only warning that they make the target inert. Switching it back off restores what they were. Each is corrected once, so changing one back yourself is not fought over |
-| Restore target on stop | on | Hands `gpu.fpsTarget` back to its previous value when the plugin is disabled. Does **not** reliably apply when the whole client exits — see Status |
-| Announce changes in chat | on | Prints a message when the target changes |
+| Headroom | Automatic | How far below the refresh rate to cap. Automatic suits any panel; Fixed uses the number below |
+| Fixed headroom | 3 | Frames below the refresh rate. Ignored unless Headroom is Fixed |
+| Minimum target | 30 | Never cap below this, whatever the display reports |
+| Fix GPU plugin settings | off | Turns the GPU plugin's vsync off and Unlock FPS on, which the target needs to work. Switching it back off restores them |
+| Restore target on stop | on | Hands `gpu.fpsTarget` back when the plugin is disabled. Not reliable on full client exit — see Status |
+| Announce in chat | on | Chat message when the target changes |
 
 ## Building
 

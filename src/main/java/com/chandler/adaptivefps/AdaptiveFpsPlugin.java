@@ -244,19 +244,25 @@ public class AdaptiveFpsPlugin extends Plugin
 	}
 
 	/**
-	 * How far below the refresh rate to sit. A fixed gap does not travel well across a wide range
-	 * of refresh rates: 3 FPS is a comfortable margin at 175Hz but only 0.6% at 500Hz, which frame
-	 * pacing jitter can eat. Scaling by one frame per 100Hz gives 172 on a 175Hz panel and 495 on
-	 * a 500Hz one, matching the usual per-panel recommendations.
+	 * How far below the refresh rate to sit.
+	 * <p>
+	 * A flat number does not travel across refresh rates. Three frames is 0.85ms of slack at 60Hz
+	 * but 0.012ms at 500Hz, and frame pacing jitter is an absolute time rather than a share of the
+	 * refresh interval, so the fast panel is left with no margin at all.
+	 * <p>
+	 * {@code refresh^2 / 3600} is what NVIDIA's own limiter uses -- it reproduces the documented
+	 * -1 FPS at 60Hz and -16 FPS at 240Hz exactly -- and is equivalent to holding a constant
+	 * ~0.3ms frametime margin at every refresh rate, which is the quantity that actually matters.
 	 */
 	private int headroomFor(int refresh)
 	{
-		int headroom = config.headroom();
-		if (config.scaleHeadroom())
+		if (config.headroomMode() == HeadroomMode.FIXED)
 		{
-			headroom = Math.max(headroom, (int) Math.ceil(refresh / 100.0));
+			return config.fixedHeadroom();
 		}
-		return headroom;
+
+		// At least one frame, so the target can never land on the refresh rate itself.
+		return Math.max(1, (int) Math.round(refresh * refresh / 3600.0));
 	}
 
 	/**

@@ -11,53 +11,46 @@ public interface AdaptiveFpsConfig extends Config
 	String GROUP = "adaptivefps";
 
 	@ConfigItem(
-		keyName = "headroom",
-		name = "Headroom below refresh",
-		description = "How many FPS below the monitor's refresh rate to target. Staying a few frames under the"
-			+ " refresh rate is what keeps a variable refresh rate display inside its VRR window instead of"
-			+ " falling back to V-Sync.",
+		keyName = "headroomMode",
+		name = "Headroom",
+		description = "How far below the refresh rate to cap. Automatic scales with the panel and suits any"
+			+ " refresh rate; Fixed uses the number below.",
 		position = 1
 	)
-	@Range(min = 0, max = 30)
-	default int headroom()
+	default HeadroomMode headroomMode()
+	{
+		return HeadroomMode.AUTOMATIC;
+	}
+
+	@ConfigItem(
+		keyName = "fixedHeadroom",
+		name = "Fixed headroom",
+		description = "Frames to stay below the refresh rate. Ignored unless Headroom is set to Fixed.",
+		position = 2
+	)
+	@Range(min = 1, max = 100)
+	default int fixedHeadroom()
 	{
 		return 3;
 	}
 
 	@ConfigItem(
-		keyName = "scaleHeadroom",
-		name = "Scale headroom with refresh",
-		description = "Widen the gap on faster panels. Frame pacing jitter grows with refresh rate, so a gap"
-			+ " that is comfortable at 175Hz is too tight at 500Hz. When on, the gap used is the larger of the"
-			+ " headroom above and one frame per 100Hz -- which gives 172 on a 175Hz panel and 495 on a 500Hz"
-			+ " one.",
-		position = 2
-	)
-	default boolean scaleHeadroom()
-	{
-		return true;
-	}
-
-	@ConfigItem(
 		keyName = "minTarget",
 		name = "Minimum target",
-		description = "Never set the FPS target below this, as a guard against a display reporting a nonsense"
-			+ " refresh rate.",
+		description = "Never cap below this, whatever the display reports.",
 		position = 3
 	)
 	@Range(min = 1, max = 999)
 	default int minTarget()
 	{
-		return 60;
+		return 30;
 	}
 
 	@ConfigItem(
 		keyName = "applyGpuSettings",
 		name = "Fix GPU plugin settings",
-		description = "Turn the GPU plugin's Vsync mode off and Unlock FPS on, which it needs before it will"
-			+ " honour an FPS target at all. Switching this back off restores whatever they were before."
-			+ " Each is corrected once, so changing one back yourself leaves it alone rather than being"
-			+ " fought over.",
+		description = "Turn the GPU plugin's vsync off and Unlock FPS on, which the FPS target needs to work"
+			+ " at all. Switching this back off restores them.",
 		position = 4
 	)
 	default boolean applyGpuSettings()
@@ -68,8 +61,7 @@ public interface AdaptiveFpsConfig extends Config
 	@ConfigItem(
 		keyName = "restoreOnStop",
 		name = "Restore target on stop",
-		description = "Put the GPU plugin's FPS target back to whatever it was before this plugin first changed"
-			+ " it, when this plugin is disabled.",
+		description = "Hand the FPS target back when this plugin is disabled.",
 		position = 5
 	)
 	default boolean restoreOnStop()
@@ -79,9 +71,8 @@ public interface AdaptiveFpsConfig extends Config
 
 	@ConfigItem(
 		keyName = "chatFeedback",
-		name = "Announce changes in chat",
-		description = "Print a game chat message whenever the FPS target changes because the client moved to a"
-			+ " different monitor.",
+		name = "Announce in chat",
+		description = "Print a chat message when the target changes.",
 		position = 6
 	)
 	default boolean chatFeedback()
