@@ -67,6 +67,13 @@ public class AdaptiveFpsPlugin extends Plugin
 	private boolean handledUnlockFps;
 	private boolean warnedAboutGpuPlugin;
 
+	/**
+	 * GPU plugin settings as they were before "Fix GPU plugin settings" overwrote them. Null means
+	 * we never touched that setting and so have nothing to give back.
+	 */
+	private String previousVsyncMode;
+	private Boolean previousUnlockFps;
+
 	@Provides
 	AdaptiveFpsConfig provideConfig(ConfigManager configManager)
 	{
@@ -81,6 +88,8 @@ public class AdaptiveFpsPlugin extends Plugin
 		lastAppliedTarget = -1;
 		handledVsync = false;
 		handledUnlockFps = false;
+		previousVsyncMode = null;
+		previousUnlockFps = null;
 		log.info("Adaptive FPS started");
 		// Deliberately no immediate evaluate() here. The GPU plugin creates its GL context lazily
 		// and bails out of startUp while the canvas is still invalid, so writing gpu.fpsTarget this
@@ -165,11 +174,46 @@ public class AdaptiveFpsPlugin extends Plugin
 			return;
 		}
 
-		if ("applyGpuSettings".equals(event.getKey()) && Boolean.parseBoolean(event.getNewValue()))
+		if (!"applyGpuSettings".equals(event.getKey()))
 		{
-			handledVsync = false;
-			handledUnlockFps = false;
+			return;
+		}
+
+		handledVsync = false;
+		handledUnlockFps = false;
+
+		if (Boolean.parseBoolean(event.getNewValue()))
+		{
 			SwingUtilities.invokeLater(this::evaluate);
+		}
+		else
+		{
+			restoreGpuSettings();
+		}
+	}
+
+	/**
+	 * Hands back whatever we overwrote when the setting was switched on. Only settings we actually
+	 * changed are restored -- anything the user set themselves is left alone.
+	 * <p>
+	 * The handled flags are cleared by the caller, so putting vsync back the way it was will draw a
+	 * fresh warning that the FPS target is inert again. That is the honest consequence of undoing
+	 * the fix, and silently reverting to a broken state would be worse than saying so.
+	 */
+	private void restoreGpuSettings()
+	{
+		if (previousVsyncMode != null)
+		{
+			configManager.setConfiguration(GPU_GROUP, KEY_VSYNC_MODE, previousVsyncMode);
+			announce("restored the GPU plugin's vsync mode to " + previousVsyncMode + ".");
+			previousVsyncMode = null;
+		}
+
+		if (previousUnlockFps != null)
+		{
+			configManager.setConfiguration(GPU_GROUP, KEY_UNLOCK_FPS, previousUnlockFps);
+			announce("restored the GPU plugin's 'Unlock FPS' to " + previousUnlockFps + ".");
+			previousUnlockFps = null;
 		}
 	}
 
@@ -279,6 +323,7 @@ public class AdaptiveFpsPlugin extends Plugin
 			handledVsync = true;
 			if (config.applyGpuSettings())
 			{
+				previousVsyncMode = vsyncMode;
 				configManager.setConfiguration(GPU_GROUP, KEY_VSYNC_MODE, "OFF");
 				announce("GPU plugin vsync mode was " + vsyncMode + "; set it to Off so the FPS target applies.");
 			}
@@ -295,6 +340,7 @@ public class AdaptiveFpsPlugin extends Plugin
 			handledUnlockFps = true;
 			if (config.applyGpuSettings())
 			{
+				previousUnlockFps = unlockFps;
 				configManager.setConfiguration(GPU_GROUP, KEY_UNLOCK_FPS, true);
 				announce("GPU plugin 'Unlock FPS' was off, capping the client at 50 FPS; turned it on.");
 			}
