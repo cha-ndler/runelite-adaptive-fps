@@ -1,7 +1,12 @@
 package com.chandler.adaptivefps;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
+import net.runelite.client.config.ConfigItem;
+import net.runelite.client.plugins.gpu.GpuPluginConfig;
 import org.junit.Test;
 
 public class AdaptiveFpsPluginTest
@@ -56,6 +61,91 @@ public class AdaptiveFpsPluginTest
 			assertTrue("margin at " + refresh + "Hz was " + marginMs + "ms",
 				marginMs > 0.25 && marginMs < 0.35);
 		}
+	}
+
+	/**
+	 * The rule both renderers implement in setupSyncMode: a target only survives when FPS is unlocked
+	 * and nothing is syncing to the display. Anything this gets wrong shows up as the plugin fighting
+	 * the renderer over the frame cap.
+	 */
+	@Test
+	public void honoursATargetOnlyWithFpsUnlockedAndVsyncOff()
+	{
+		assertTrue(AdaptiveFpsPlugin.honoursTarget(true, "OFF"));
+		assertFalse(AdaptiveFpsPlugin.honoursTarget(true, "ON"));
+		assertFalse(AdaptiveFpsPlugin.honoursTarget(true, "ADAPTIVE"));
+		assertFalse(AdaptiveFpsPlugin.honoursTarget(false, "OFF"));
+
+		// A sync mode neither renderer has today has to read as "syncing", not as "off". Also pins
+		// that the comparison is exact: RuneLite stores these by name(), so they are always upper case.
+		assertFalse(AdaptiveFpsPlugin.honoursTarget(true, "FASTSYNC"));
+		assertFalse(AdaptiveFpsPlugin.honoursTarget(true, "off"));
+	}
+
+	/**
+	 * What shutdown hands back. Returning the configured target while the renderer is syncing would
+	 * cap a vsynced client at a number the user never asked for and did not have before.
+	 */
+	@Test
+	public void handsBackZeroWheneverTheRendererWould()
+	{
+		assertEquals(144, AdaptiveFpsPlugin.configuredTarget(true, "OFF", 144));
+		assertEquals(0, AdaptiveFpsPlugin.configuredTarget(true, "ON", 144));
+		assertEquals(0, AdaptiveFpsPlugin.configuredTarget(true, "ADAPTIVE", 144));
+		assertEquals(0, AdaptiveFpsPlugin.configuredTarget(false, "OFF", 144));
+	}
+
+	/** Config groups decide which events are reacted to and where settings are read and written. */
+	@Test
+	public void mapsConfigGroupsToRenderers()
+	{
+		assertSame(Renderer.GPU, Renderer.forGroup("gpu"));
+		assertSame(Renderer.HD, Renderer.forGroup("hd"));
+		assertNull(Renderer.forGroup(AdaptiveFpsConfig.GROUP));
+
+		assertTrue(Renderer.isRendererGroup("gpu"));
+		assertTrue(Renderer.isRendererGroup("hd"));
+		assertFalse(Renderer.isRendererGroup(AdaptiveFpsConfig.GROUP));
+
+		assertSame(Renderer.HD, Renderer.forClassName("rs117.hd.HdPlugin"));
+		assertNull(Renderer.forClassName("rs117.hd.HdPluginConfig"));
+	}
+
+	/**
+	 * 117 HD is a Plugin Hub plugin, so nothing here can be checked against it at build time the way
+	 * the GPU plugin's can be below. These are transcribed from 117 HD 1.5.2, and this test only stops
+	 * them being changed by accident.
+	 */
+	@Test
+	public void pinsTheTranscribed117HdDefaults()
+	{
+		assertEquals("hd", Renderer.HD.group());
+		assertFalse(Renderer.HD.defaultUnlockFps());
+		assertEquals("ADAPTIVE", Renderer.HD.defaultVsyncMode());
+
+		// The GPU plugin's own defaults, for contrast: a default install already honours a target,
+		// where a default 117 HD install fails both conditions.
+		assertTrue(Renderer.GPU.defaultUnlockFps());
+		assertEquals("OFF", Renderer.GPU.defaultVsyncMode());
+	}
+
+	/**
+	 * The plugin reads and writes the GPU plugin's settings by key name rather than through its config
+	 * interface, so an upstream rename would otherwise go unnoticed until someone reported that
+	 * nothing happens. 117 HD uses these same three key names, so this covers both.
+	 */
+	@Test
+	public void pinsTheGpuPluginsKeyNames() throws NoSuchMethodException
+	{
+		assertEquals("gpu", GpuPluginConfig.GROUP);
+		assertEquals("unlockFps", keyNameOf("unlockFps"));
+		assertEquals("vsyncMode", keyNameOf("syncMode"));
+		assertEquals("fpsTarget", keyNameOf("fpsTarget"));
+	}
+
+	private static String keyNameOf(String method) throws NoSuchMethodException
+	{
+		return GpuPluginConfig.class.getMethod(method).getAnnotation(ConfigItem.class).keyName();
 	}
 
 	private static int automaticHeadroomOf(int refresh)

@@ -78,35 +78,54 @@ measured. `Fixed` is there for anyone who would rather not rely on that.
 
 ## What it changes
 
-The target is applied with `Client.setUnlockedFpsTarget(int)` — the same client API call
-`GpuPlugin.setupSyncMode` makes. That is a runtime value, not a stored setting, so:
+The target is applied with `Client.setUnlockedFpsTarget(int)` — the same client API call both
+`GpuPlugin.setupSyncMode` and `HdPlugin.setupSyncMode` make. That is a runtime value, not a stored
+setting, so:
 
-- **The GPU plugin's own "FPS target" setting is never written.** It keeps whatever you set it to,
+- **Your renderer's own "FPS target" setting is never written.** It keeps whatever you set it to,
   and it is what takes effect again the moment this plugin is disabled or the client is restarted.
 - **Nothing needs restoring**, because nothing was persisted. There is no state left behind on disk
   if you uninstall the plugin.
 - Rather than adding a second, competing frame limiter, this drives the one the client already has.
 
-The one exception is the optional **Fix GPU plugin settings** checkbox, which is off by default. Only
-when you turn it on does the plugin write to the GPU plugin's configuration, and only these two keys:
+The one exception is the optional **Fix vsync and Unlock FPS** checkbox, which is off by default.
+Only when you turn it on does the plugin write to your renderer's configuration, and only these two
+keys, in whichever group is active:
 
 | Key | Set to | Restored when |
 | --- | --- | --- |
-| `gpu.vsyncMode` | `OFF` | you switch the checkbox off, or disable Adaptive FPS |
-| `gpu.unlockFps` | `true` | you switch the checkbox off, or disable Adaptive FPS |
+| `gpu.vsyncMode` / `hd.vsyncMode` | `OFF` | you switch the checkbox off, or disable Adaptive FPS |
+| `gpu.unlockFps` / `hd.unlockFps` | `true` | you switch the checkbox off, or disable Adaptive FPS |
 
 Turning the checkbox on raises RuneLite's built-in confirmation dialog first, every change is
-announced in chat, and only values the plugin itself overwrote are ever put back.
+announced in chat, and only values the plugin itself overwrote are ever put back. A key you had
+never set is cleared again rather than written back with a value you never chose.
+
+## Supported renderers
+
+Both the core **GPU** plugin and **117 HD** are supported, and whichever is enabled is detected
+automatically — there is nothing to select. RuneLite treats the two as mutually exclusive (117 HD
+declares `conflicts = "GPU"`), so exactly one of them is ever running.
+
+They are driven identically because they behave identically: both use the config keys `fpsTarget`,
+`unlockFps` and `vsyncMode`, both end `setupSyncMode` with
+`setUnlockedFpsTarget(swapInterval == 0 ? fpsTarget : 0)`, and both re-run that method when any of
+those three keys changes.
 
 ## Requirements
 
-The GPU plugin must have:
+Whichever renderer you use must have:
 
 - **Unlock FPS** on — otherwise the client is capped at 50 FPS and the target is irrelevant.
-- **Vsync mode: Off** — `GpuPlugin` passes `0` to `setUnlockedFpsTarget` whenever the swap interval is
-  non-zero, so any target is discarded when vsync is on or adaptive.
+- **Vsync mode: Off** — both renderers pass `0` to `setUnlockedFpsTarget` whenever the swap interval
+  is non-zero, so any target is discarded when vsync is on or adaptive.
 
-The plugin detects both of these and says so in chat rather than failing silently.
+**117 HD users should expect to change both.** Its defaults are `Unlock FPS` **off** and
+`Vsync Mode: Adaptive`, so a stock 117 HD install fails both conditions and the plugin will say so
+in chat on first run. The core GPU plugin defaults to `Unlock FPS` on and `Vsync mode: Off`, so a
+stock install there already satisfies them.
+
+The plugin detects both conditions and says so in chat rather than failing silently.
 
 Note that `Vsync mode: On` is itself partly monitor-adaptive — it locks presentation to the current
 display's refresh. It is not a substitute here, because it locks *at* the refresh rate rather than
@@ -121,10 +140,12 @@ Three assumptions were checked empirically on a 500Hz + 175Hz pair rather than a
    number we want.
 2. **AWT updates the canvas `GraphicsConfiguration` when the window moves.** A canvas in a frame moved
    between monitors reports the new device and its refresh rate — it does not cache the original.
-3. **The target applies live.** `Client.setUnlockedFpsTarget` is the same call `GpuPlugin.setupSyncMode`
-   makes, confirmed by reading it upstream. The GPU plugin re-asserts its own value whenever one of
-   its sync settings changes, so the plugin listens for that and re-applies rather than waiting for
-   the next poll.
+3. **The target applies live.** `Client.setUnlockedFpsTarget` is the same call both
+   `GpuPlugin.setupSyncMode` and `HdPlugin.setupSyncMode` make, confirmed by reading each upstream —
+   117 HD against release 1.5.2 and the commit the Plugin Hub pins. Both re-assert their own value
+   whenever one of their sync settings changes, so the target is re-applied on every poll rather
+   than only when it changes. Catching the config event merely makes that happen sooner: which
+   plugin's event handler runs first is not defined, so correctness cannot depend on winning it.
 
 Displays that report `REFRESH_RATE_UNKNOWN` (some drivers, virtual displays, remote sessions) are
 left alone rather than guessed at.
@@ -144,13 +165,15 @@ Retargeting works in both directions within one poll interval, with no exception
 
 Known limitations:
 
-- Inert while the GPU plugin's vsync mode is anything but Off, because `GpuPlugin` discards any
-  target when syncing to the display. The plugin reports this in chat rather than failing silently,
-  but it cannot fix it for you unless you ask it to.
-- The GPU plugin's "FPS target" setting keeps showing your configured number rather than the one
+- Inert while the active renderer's vsync mode is anything but Off, because both discard any target
+  when syncing to the display. The plugin reports this in chat rather than failing silently, but it
+  cannot fix it for you unless you ask it to.
+- Your renderer's "FPS target" setting keeps showing your configured number rather than the one
   actually in effect. That is the deliberate trade for never writing to it; the active target is
   reported in chat and in the log instead.
-- Only drives the core GPU plugin. 117HD has its own `hd.fpsTarget` and is not handled.
+- 117 HD's settings are read by key name and its defaults are transcribed rather than inherited,
+  since it is a Hub plugin and cannot be compiled against. If it ever renames one of those keys the
+  cost is a spurious warning, not a wrong frame cap.
 
 Nothing in the RuneLite Plugin Hub does this today — all 2209 plugin manifests were checked. The
 natural long-term home for this is the core GPU plugin itself, which already owns both `fpsTarget`
@@ -165,7 +188,7 @@ upstream.
 | Headroom | Automatic | How far below the refresh rate to cap. Automatic suits any panel; Fixed uses the number below |
 | Fixed headroom | 3 | Frames below the refresh rate. Ignored unless Headroom is Fixed |
 | Minimum target | 30 | Never cap below this, whatever the display reports |
-| Fix GPU plugin settings | off | Turns the GPU plugin's vsync off and Unlock FPS on, which the target needs to work. Asks first, and switching it back off restores them |
+| Fix vsync and Unlock FPS | off | Turns the active renderer's vsync off and Unlock FPS on, which the target needs to work. Asks first, and switching it back off restores them |
 | Announce in chat | on | Chat message when the target changes |
 
 ## Building

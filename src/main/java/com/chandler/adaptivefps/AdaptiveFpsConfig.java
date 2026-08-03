@@ -50,15 +50,20 @@ public interface AdaptiveFpsConfig extends Config
 	 * The only setting here that changes anything outside this plugin, so it is the only one that
 	 * asks first. RuneLite renders {@code warning} as a Yes/No dialog that defaults to No and drops
 	 * the change if declined.
+	 * <p>
+	 * The key still reads {@code applyGpuSettings} now that it covers 117 HD as well. Renaming it
+	 * would quietly switch every user who had opted in back off and leave the old key behind on disk,
+	 * which is a poor trade for a tidier name nobody sees.
 	 */
 	@ConfigItem(
 		keyName = "applyGpuSettings",
-		name = "Fix GPU plugin settings",
-		description = "Turn the GPU plugin's vsync off and Unlock FPS on, which the FPS target needs to work"
-			+ " at all. Switching this back off restores them.",
-		warning = "This changes two settings that belong to the GPU plugin: Vsync mode is set to Off and"
-			+ " Unlock FPS is turned on. Both are put back if you switch this off again or disable"
-			+ " Adaptive FPS.",
+		name = "Fix vsync and Unlock FPS",
+		description = "Turn the active renderer's vsync off and Unlock FPS on, which the FPS target needs"
+			+ " to work at all. Applies to whichever of the GPU plugin or 117 HD is enabled. Switching"
+			+ " this back off restores them.",
+		warning = "This changes two settings that belong to your renderer: Vsync mode is set to Off and"
+			+ " Unlock FPS is turned on. On 117 HD both of these differ from its defaults, so expect a"
+			+ " visible change. Both are put back if you switch this off again or disable Adaptive FPS.",
 		position = 4
 	)
 	default boolean applyGpuSettings()
