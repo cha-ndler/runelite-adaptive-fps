@@ -174,6 +174,11 @@ Known limitations:
 - 117 HD's settings are read by key name and its defaults are transcribed rather than inherited,
   since it is a Hub plugin and cannot be compiled against. If it ever renames one of those keys the
   cost is a spurious warning, not a wrong frame cap.
+- **Quitting the client does not restore borrowed settings.** RuneLite does not stop plugins on
+  exit, so the two triggers listed above — unticking the box, or disabling Adaptive FPS — are the
+  only ones. Close the client with the fix applied and the value it borrowed is gone, because it was
+  only ever held in memory. Nothing breaks: vsync stays off and the target keeps working. But the
+  setting you originally had is not coming back, so untick the box first if you want it returned.
 
 Nothing in the RuneLite Plugin Hub does this today — all 2209 plugin manifests were checked. The
 natural long-term home for this is the core GPU plugin itself, which already owns both `fpsTarget`

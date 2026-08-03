@@ -41,6 +41,12 @@ and both are driven the same way.
   and the client offers no way to read the current target back, so this is the
   only way to be certain. Chat and log messages still appear only on a change.
 
+### Notes
+
+- Quitting the client does not restore borrowed settings, because RuneLite does
+  not stop plugins on exit. Unticking the box or disabling the plugin are the
+  only triggers. Longstanding behaviour, now documented rather than implied.
+
 ## 1.0.0
 
 Keeps RuneLite's FPS target just below the refresh rate of whichever monitor the
