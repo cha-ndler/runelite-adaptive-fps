@@ -14,6 +14,8 @@ import net.runelite.api.Client;
 import net.runelite.api.GameState;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
+import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.task.Schedule;
@@ -111,6 +113,11 @@ public class AdaptiveFpsPlugin extends Plugin
 			return;
 		}
 
+		// Checked before the early return below. The user can change vsync, or the setting that
+		// lets us fix it, at any moment -- tying this to a target change meant it went unnoticed
+		// until the window happened to move between monitors.
+		checkGpuPluginState();
+
 		Integer refresh = currentRefreshRate();
 		if (refresh == null)
 		{
@@ -143,8 +150,27 @@ public class AdaptiveFpsPlugin extends Plugin
 		{
 			sendChat("Adaptive FPS: " + refresh + "Hz display, FPS target set to " + target + ".");
 		}
+	}
 
-		checkGpuPluginState();
+	/**
+	 * Turning on "Fix GPU plugin settings" has to be able to act on a condition already warned
+	 * about. Without clearing the flags, the warning that tells the user to enable the setting is
+	 * the very thing that stops it from ever taking effect that session.
+	 */
+	@Subscribe
+	public void onConfigChanged(ConfigChanged event)
+	{
+		if (!AdaptiveFpsConfig.GROUP.equals(event.getGroup()))
+		{
+			return;
+		}
+
+		if ("applyGpuSettings".equals(event.getKey()) && Boolean.parseBoolean(event.getNewValue()))
+		{
+			handledVsync = false;
+			handledUnlockFps = false;
+			SwingUtilities.invokeLater(this::evaluate);
+		}
 	}
 
 	/**

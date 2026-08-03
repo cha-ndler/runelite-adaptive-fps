@@ -55,8 +55,9 @@ public interface AdaptiveFpsConfig extends Config
 		keyName = "applyGpuSettings",
 		name = "Fix GPU plugin settings",
 		description = "Turn the GPU plugin's Vsync mode off and Unlock FPS on, which it needs before it will"
-			+ " honour an FPS target at all. Applied once when this plugin starts -- if you change them back"
-			+ " later it will leave them alone rather than fight you -- and not undone when this plugin stops.",
+			+ " honour an FPS target at all. Each is corrected once, so changing one back later leaves it"
+			+ " alone rather than being fought over; switching this setting off and on again re-arms it."
+			+ " Nothing is undone when this plugin stops.",
 		position = 4
 	)
 	default boolean applyGpuSettings()

@@ -102,7 +102,7 @@ upstream.
 | Headroom below refresh | 3 | Minimum frames to stay under the refresh rate |
 | Scale headroom with refresh | on | Widen the gap on faster panels, one frame per 100Hz |
 | Minimum target | 60 | Floor, guarding against a nonsense reported refresh rate |
-| Fix GPU plugin settings | off | Set the GPU plugin's Vsync mode to Off and Unlock FPS on, instead of only warning that they make the target inert. Applied once per start, and not undone on stop |
+| Fix GPU plugin settings | off | Set the GPU plugin's Vsync mode to Off and Unlock FPS on, instead of only warning that they make the target inert. Each is corrected once so it is not fought over; toggling this setting off and on re-arms it. Not undone on stop |
 | Restore target on stop | on | Hands `gpu.fpsTarget` back to its previous value when the plugin is disabled. Does **not** reliably apply when the whole client exits — see Status |
 | Announce changes in chat | on | Prints a message when the target changes |
 
