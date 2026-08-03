@@ -1,7 +1,7 @@
 # Adaptive FPS
 
-Keeps the RuneLite GPU plugin's FPS target just below the refresh rate of whichever monitor the
-client window is currently on.
+Keeps RuneLite's FPS target just below the refresh rate of whichever monitor the client window is
+currently on.
 
 ![The client moved from a 500Hz monitor to a 175Hz one, with the plugin announcing the new FPS target in chat](docs/demo.gif)
 
@@ -22,9 +22,9 @@ changed.
 
 ## What it does
 
-Every two seconds it reads the refresh rate of the monitor the client canvas sits on and writes
-`gpu.fpsTarget` a little below it. Moving the client between monitors re-targets it within a couple
-of seconds, with no restart.
+Every two seconds it reads the refresh rate of the monitor the client canvas sits on and sets the
+client's FPS target a little below it. Moving the client between monitors re-targets it within a
+couple of seconds, with no restart and nothing to configure per monitor.
 
 ## How far below the refresh rate
 
@@ -76,12 +76,27 @@ faster is an **extrapolation**. It is a well-behaved one — the constant ~0.3ms
 holds across the whole range rather than diverging — but a 500Hz target of 431 is inferred, not
 measured. `Fixed` is there for anyone who would rather not rely on that.
 
-## Why it writes to the GPU plugin instead of limiting frames itself
+## What it changes
 
-`GpuPlugin.onConfigChanged` already watches `unlockFps`, `vsyncMode` and `fpsTarget` and re-applies
-the target live. Rather than adding a second, competing frame limiter, this plugin just keeps the
-existing one pointed at the right number. That keeps the behaviour identical to setting the value by
-hand in the GPU plugin's settings.
+The target is applied with `Client.setUnlockedFpsTarget(int)` — the same client API call
+`GpuPlugin.setupSyncMode` makes. That is a runtime value, not a stored setting, so:
+
+- **The GPU plugin's own "FPS target" setting is never written.** It keeps whatever you set it to,
+  and it is what takes effect again the moment this plugin is disabled or the client is restarted.
+- **Nothing needs restoring**, because nothing was persisted. There is no state left behind on disk
+  if you uninstall the plugin.
+- Rather than adding a second, competing frame limiter, this drives the one the client already has.
+
+The one exception is the optional **Fix GPU plugin settings** checkbox, which is off by default. Only
+when you turn it on does the plugin write to the GPU plugin's configuration, and only these two keys:
+
+| Key | Set to | Restored when |
+| --- | --- | --- |
+| `gpu.vsyncMode` | `OFF` | you switch the checkbox off, or disable Adaptive FPS |
+| `gpu.unlockFps` | `true` | you switch the checkbox off, or disable Adaptive FPS |
+
+Turning the checkbox on raises RuneLite's built-in confirmation dialog first, every change is
+announced in chat, and only values the plugin itself overwrote are ever put back.
 
 ## Requirements
 
@@ -89,7 +104,7 @@ The GPU plugin must have:
 
 - **Unlock FPS** on — otherwise the client is capped at 50 FPS and the target is irrelevant.
 - **Vsync mode: Off** — `GpuPlugin` passes `0` to `setUnlockedFpsTarget` whenever the swap interval is
-  non-zero, so `fpsTarget` is ignored entirely when vsync is on or adaptive.
+  non-zero, so any target is discarded when vsync is on or adaptive.
 
 The plugin detects both of these and says so in chat rather than failing silently.
 
@@ -106,7 +121,10 @@ Three assumptions were checked empirically on a 500Hz + 175Hz pair rather than a
    number we want.
 2. **AWT updates the canvas `GraphicsConfiguration` when the window moves.** A canvas in a frame moved
    between monitors reports the new device and its refresh rate — it does not cache the original.
-3. **`gpu.fpsTarget` applies live.** Confirmed by reading `GpuPlugin.onConfigChanged` upstream.
+3. **The target applies live.** `Client.setUnlockedFpsTarget` is the same call `GpuPlugin.setupSyncMode`
+   makes, confirmed by reading it upstream. The GPU plugin re-asserts its own value whenever one of
+   its sync settings changes, so the plugin listens for that and re-applies rather than waiting for
+   the next poll.
 
 Displays that report `REFRESH_RATE_UNKNOWN` (some drivers, virtual displays, remote sessions) are
 left alone rather than guessed at.
@@ -117,23 +135,21 @@ Proof of concept, exercised against a real client on a 500Hz + 175Hz pair:
 
 ```
 Adaptive FPS started
-Display \Display1 at 500Hz -> gpu.fpsTarget 431
-Display \Display0 at 175Hz -> gpu.fpsTarget 166     (client dragged to the 175Hz panel)
-Display \Display1 at 500Hz -> gpu.fpsTarget 431     (dragged back)
+Display \Display1 at 500Hz -> FPS target 431
+Display \Display0 at 175Hz -> FPS target 166     (client dragged to the 175Hz panel)
+Display \Display1 at 500Hz -> FPS target 431     (dragged back)
 ```
 
 Retargeting works in both directions within one poll interval, with no exceptions raised.
 
 Known limitations:
 
-- **Restore on stop does not survive client exit.** Disabling the plugin during a session restores
-  `gpu.fpsTarget`, but on a full client shutdown the restore write loses a race with RuneLite's
-  final config flush, so the last applied target persists instead. Harmless in practice, since the
-  persisted value is the right one for whichever monitor you were last on, but it does not do what
-  the setting name implies in that case.
-- Inert while the GPU plugin's vsync mode is anything but Off, because `GpuPlugin` ignores
-  `fpsTarget` entirely when syncing to the display. The plugin reports this in chat rather than
-  failing silently, but it cannot fix it for you.
+- Inert while the GPU plugin's vsync mode is anything but Off, because `GpuPlugin` discards any
+  target when syncing to the display. The plugin reports this in chat rather than failing silently,
+  but it cannot fix it for you unless you ask it to.
+- The GPU plugin's "FPS target" setting keeps showing your configured number rather than the one
+  actually in effect. That is the deliberate trade for never writing to it; the active target is
+  reported in chat and in the log instead.
 - Only drives the core GPU plugin. 117HD has its own `hd.fpsTarget` and is not handled.
 
 Nothing in the RuneLite Plugin Hub does this today — all 2209 plugin manifests were checked. The
@@ -149,8 +165,7 @@ upstream.
 | Headroom | Automatic | How far below the refresh rate to cap. Automatic suits any panel; Fixed uses the number below |
 | Fixed headroom | 3 | Frames below the refresh rate. Ignored unless Headroom is Fixed |
 | Minimum target | 30 | Never cap below this, whatever the display reports |
-| Fix GPU plugin settings | off | Turns the GPU plugin's vsync off and Unlock FPS on, which the target needs to work. Switching it back off restores them |
-| Restore target on stop | on | Hands `gpu.fpsTarget` back when the plugin is disabled. Not reliable on full client exit — see Status |
+| Fix GPU plugin settings | off | Turns the GPU plugin's vsync off and Unlock FPS on, which the target needs to work. Asks first, and switching it back off restores them |
 | Announce in chat | on | Chat message when the target changes |
 
 ## Building

@@ -46,11 +46,19 @@ public interface AdaptiveFpsConfig extends Config
 		return 30;
 	}
 
+	/**
+	 * The only setting here that changes anything outside this plugin, so it is the only one that
+	 * asks first. RuneLite renders {@code warning} as a Yes/No dialog that defaults to No and drops
+	 * the change if declined.
+	 */
 	@ConfigItem(
 		keyName = "applyGpuSettings",
 		name = "Fix GPU plugin settings",
 		description = "Turn the GPU plugin's vsync off and Unlock FPS on, which the FPS target needs to work"
 			+ " at all. Switching this back off restores them.",
+		warning = "This changes two settings that belong to the GPU plugin: Vsync mode is set to Off and"
+			+ " Unlock FPS is turned on. Both are put back if you switch this off again or disable"
+			+ " Adaptive FPS.",
 		position = 4
 	)
 	default boolean applyGpuSettings()
@@ -59,21 +67,10 @@ public interface AdaptiveFpsConfig extends Config
 	}
 
 	@ConfigItem(
-		keyName = "restoreOnStop",
-		name = "Restore target on stop",
-		description = "Hand the FPS target back when this plugin is disabled.",
-		position = 5
-	)
-	default boolean restoreOnStop()
-	{
-		return true;
-	}
-
-	@ConfigItem(
 		keyName = "chatFeedback",
 		name = "Announce in chat",
 		description = "Print a chat message when the target changes.",
-		position = 6
+		position = 5
 	)
 	default boolean chatFeedback()
 	{
