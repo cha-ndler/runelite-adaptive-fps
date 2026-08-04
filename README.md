@@ -40,6 +40,7 @@ quantity that actually matters.
 | Refresh | Headroom | Target | Frametime margin |
 | --- | --- | --- | --- |
 | 60Hz | 1 | 59 | 0.28 ms |
+| 75Hz | 2 | 73 | 0.37 ms |
 | 100Hz | 3 | 97 | 0.31 ms |
 | 120Hz | 4 | 116 | 0.29 ms |
 | 144Hz | 6 | 138 | 0.30 ms |
@@ -47,6 +48,10 @@ quantity that actually matters.
 | 240Hz | 16 | 224 | 0.30 ms |
 | 360Hz | 36 | 324 | 0.31 ms |
 | 500Hz | 69 | 431 | 0.32 ms |
+
+The margin sits near 0.3ms everywhere except at the slow end, where rounding to a whole frame has
+nowhere fine-grained to land — 75Hz wants 1.56 frames, gets 2, and ends up at 0.37ms. That errs
+towards more headroom rather than less, so it is safe rather than merely tolerable.
 
 Set **Headroom** to `Fixed` if you would rather pick the number yourself.
 
@@ -179,6 +184,10 @@ Known limitations:
   cost is a spurious warning, not a wrong frame cap.
 - **Quitting the client does not restore borrowed settings** — RuneLite does not stop plugins on
   exit. Nothing breaks, but untick the box first if you want your original values back.
+- **Turning vsync off is only worth doing on a VRR display.** Without G-Sync or FreeSync the
+  checkbox trades a vsync-locked frame rate for an uncapped one a couple of frames lower, which
+  tears. On a fixed-refresh panel, leaving vsync on and not using the checkbox is the better setup —
+  this plugin exists to keep a *variable* refresh display inside its window.
 
 No other Plugin Hub plugin did this when this one was submitted; the manifests were checked. The
 natural long-term home is the core GPU plugin itself, which already owns both `fpsTarget` and

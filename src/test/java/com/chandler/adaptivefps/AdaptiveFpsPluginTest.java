@@ -27,6 +27,7 @@ public class AdaptiveFpsPluginTest
 	public void matchesTheDocumentedTable()
 	{
 		assertEquals(1, AdaptiveFpsPlugin.automaticHeadroom(60));
+		assertEquals(2, AdaptiveFpsPlugin.automaticHeadroom(75));
 		assertEquals(3, AdaptiveFpsPlugin.automaticHeadroom(100));
 		assertEquals(4, AdaptiveFpsPlugin.automaticHeadroom(120));
 		assertEquals(6, AdaptiveFpsPlugin.automaticHeadroom(144));
@@ -50,7 +51,13 @@ public class AdaptiveFpsPluginTest
 		}
 	}
 
-	/** Slack in absolute time is what actually absorbs frame pacing jitter; it should hold ~0.3ms. */
+	/**
+	 * Slack in absolute time is what actually absorbs frame pacing jitter; it should hold ~0.3ms.
+	 * <p>
+	 * 75Hz is deliberately not in this list. It wants 1.56 frames of headroom and can only be given a
+	 * whole one, so it overshoots to 0.37ms. That is the rounding erring towards more margin than
+	 * asked for, which is safe -- but it does not belong inside a band this narrow.
+	 */
 	@Test
 	public void holdsAConstantFrametimeMargin()
 	{
@@ -93,6 +100,30 @@ public class AdaptiveFpsPluginTest
 		assertEquals(0, AdaptiveFpsPlugin.configuredTarget(true, "ON", 144));
 		assertEquals(0, AdaptiveFpsPlugin.configuredTarget(true, "ADAPTIVE", 144));
 		assertEquals(0, AdaptiveFpsPlugin.configuredTarget(false, "OFF", 144));
+	}
+
+	/**
+	 * A 117 HD user on a 75Hz panel, reported against 1.0.0 back when only the GPU plugin was
+	 * detected. Each of the three states they passed through has to produce a different outcome, and
+	 * only the last of them is this plugin doing anything at all.
+	 */
+	@Test
+	public void walksTheReported117HdOn75HzCase()
+	{
+		// Stock 117 HD. Its own setupSyncMode forces the sync mode off whenever FPS is locked, so the
+		// vsync setting is not what holds these users at 50 -- the client's own cap is, and no FPS
+		// target of any value lifts it.
+		assertFalse(AdaptiveFpsPlugin.honoursTarget(Renderer.HD.defaultUnlockFps(),
+			Renderer.HD.defaultVsyncMode()));
+
+		// Unlocking FPS by hand and leaving vsync alone, which is where the report stopped. Adaptive
+		// vsync pins the frame rate to the refresh rate exactly, which is the 75 that was seen.
+		assertFalse(AdaptiveFpsPlugin.honoursTarget(true, "ADAPTIVE"));
+		assertEquals(0, AdaptiveFpsPlugin.configuredTarget(true, "ADAPTIVE", 60));
+
+		// Both settings fixed, which is what the checkbox is for. Only now does a target survive.
+		assertTrue(AdaptiveFpsPlugin.honoursTarget(true, "OFF"));
+		assertEquals(73, 75 - AdaptiveFpsPlugin.automaticHeadroom(75));
 	}
 
 	/** Config groups decide which events are reacted to and where settings are read and written. */
